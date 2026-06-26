@@ -1,29 +1,54 @@
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script src="https://unpkg.com/nsfwjs"></script>
+<!DOCTYPE html><html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Moderation Test</title><style>
+body{
+    background:#000;
+    color:#fff;
+    font-family:Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    text-align:center;
+    margin:0;
+}
+#status{
+    padding:20px;
+}
+</style><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script><script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script></head>
+<body><div id="status">
+Başlatılıyor...
+</div><script>
 
-<script>
+window.onerror = function(msg,url,line,col,error){
 
-let model = null;
+    document.getElementById("status").innerHTML =
+    "HATA<br><br>" + msg;
 
-const PORN_LIMIT = 0.10;
-const HENTAI_LIMIT = 0.10;
-const SEXY_LIMIT = 0.45;
+};
 
-async function loadModel(){
+async function start(){
 
     try{
 
-        document.getElementById("status").innerText =
-        "Model yükleniyor...";
+        document.getElementById("status").innerHTML =
+        "TensorFlow: " + typeof tf + "<br><br>Model yükleniyor...";
 
-        model = await nsfwjs.load();
+        const model = await mobilenet.load();
 
-        document.getElementById("status").innerText =
-        "Moderation Sistemi Hazır";
+        document.getElementById("status").innerHTML =
+        "✅ TensorFlow Çalışıyor<br><br>" +
+        "✅ MobileNet Yüklendi";
 
-    }catch(error){
+        console.log(model);
 
-        document.getElementById("status").innerText =
+    }
+    catch(error){
+
+        document.getElementById("status").innerHTML =
+        "MODEL HATASI<br><br>" +
         error.message;
 
         console.error(error);
@@ -32,87 +57,7 @@ async function loadModel(){
 
 }
 
-loadModel();
+start();
 
-function sendResult(safe,reason){
-
-    window.parent.postMessage({
-        type:"MODERATION_RESULT",
-        safe:safe,
-        reason:reason
-    },"*");
-
-}
-
-window.addEventListener("message",async(event)=>{
-
-    if(!event.data) return;
-
-    if(event.data.type !== "CHECK_IMAGE") return;
-
-    try{
-
-        if(!model){
-
-            sendResult(false,"MODEL_NOT_READY");
-            return;
-
-        }
-
-        const img = new Image();
-
-        img.crossOrigin = "anonymous";
-
-        img.onload = async ()=>{
-
-            const predictions =
-            await model.classify(img);
-
-            let porn = 0;
-            let hentai = 0;
-            let sexy = 0;
-
-            predictions.forEach(item=>{
-
-                if(item.className==="Porn")
-                    porn=item.probability;
-
-                if(item.className==="Hentai")
-                    hentai=item.probability;
-
-                if(item.className==="Sexy")
-                    sexy=item.probability;
-
-            });
-
-            const blocked =
-
-                porn>PORN_LIMIT ||
-                hentai>HENTAI_LIMIT ||
-                sexy>SEXY_LIMIT;
-
-            if(blocked){
-
-                sendResult(false,"NSFW_DETECTED");
-
-            }else{
-
-                sendResult(true,"SAFE");
-
-            }
-
-        };
-
-        img.src = event.data.image;
-
-    }catch(error){
-
-        console.error(error);
-
-        sendResult(false,"CHECK_FAILED");
-
-    }
-
-});
-
-</script>
+</script></body>
+</html>
