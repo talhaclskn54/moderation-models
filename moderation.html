@@ -1,63 +1,121 @@
 <!DOCTYPE html><html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Moderation Test</title><style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script><script src="https://cdn.jsdelivr.net/npm/nsfwjs"></script><title>Moderation System</title><style>
 body{
     background:#000;
     color:#fff;
-    font-family:Arial,sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
+    font-family:Arial;
     text-align:center;
-    margin:0;
+    padding-top:80px;
 }
-#status{
-    padding:20px;
+</style></head>
+<body><h2 id="status">Model yükleniyor...</h2><img id="preview" style="display:none;max-width:300px;"><script>
+
+let model = null;
+
+const PORN_LIMIT   = 0.08;
+const HENTAI_LIMIT = 0.10;
+const SEXY_LIMIT   = 0.45;
+
+async function loadModel(){
+
+    document.getElementById("status").innerText =
+    "TensorFlow yükleniyor...";
+
+    model = await nsfwjs.load();
+
+    document.getElementById("status").innerText =
+    "✅ Moderation hazır";
+
 }
-</style><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script><script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script></head>
-<body><div id="status">
-Başlatılıyor...
-</div><script>
 
-window.onerror = function(msg,url,line,col,error){
+loadModel();
 
-    document.getElementById("status").innerHTML =
-    "HATA<br><br>" + msg;
+window.addEventListener("message", async (event)=>{
 
-};
+    if(!event.data) return;
+    if(event.data.type !== "CHECK_IMAGE") return;
 
-async function start(){
+    if(!model){
+
+        parent.postMessage({
+            type:"MODERATION_RESULT",
+            safe:false,
+            reason:"MODEL_NOT_READY"
+        },"*");
+
+        return;
+    }
 
     try{
 
-        document.getElementById("status").innerHTML =
-        "TensorFlow: " + typeof tf + "<br><br>Model yükleniyor...";
+        const img = document.getElementById("preview");
 
-        const model = await mobilenet.load();
+        img.src = event.data.image;
 
-        document.getElementById("status").innerHTML =
-        "✅ TensorFlow Çalışıyor<br><br>" +
-        "✅ MobileNet Yüklendi";
+        img.onload = async ()=>{
 
-        console.log(model);
+            const predictions =
+            await model.classify(img);
+
+            let porn = 0;
+            let hentai = 0;
+            let sexy = 0;
+
+            predictions.forEach(p=>{
+
+                if(p.className==="Porn")
+                    porn = p.probability;
+
+                if(p.className==="Hentai")
+                    hentai = p.probability;
+
+                if(p.className==="Sexy")
+                    sexy = p.probability;
+
+            });
+
+            let blocked = false;
+            let reason = "SAFE";
+
+            if(porn > PORN_LIMIT){
+                blocked = true;
+                reason = "PORN";
+            }
+
+            if(hentai > HENTAI_LIMIT){
+                blocked = true;
+                reason = "HENTAI";
+            }
+
+            if(sexy > SEXY_LIMIT){
+                blocked = true;
+                reason = "SEXY";
+            }
+
+            parent.postMessage({
+                type:"MODERATION_RESULT",
+                safe:!blocked,
+                reason:reason,
+                porn:porn,
+                hentai:hentai,
+                sexy:sexy
+            },"*");
+
+        };
+
+    }catch(e){
+
+        parent.postMessage({
+            type:"MODERATION_RESULT",
+            safe:false,
+            reason:"ERROR"
+        },"*");
 
     }
-    catch(error){
 
-        document.getElementById("status").innerHTML =
-        "MODEL HATASI<br><br>" +
-        error.message;
-
-        console.error(error);
-
-    }
-
-}
-
-start();
+});
 
 </script></body>
 </html>
