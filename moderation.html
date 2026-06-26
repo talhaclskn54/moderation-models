@@ -1,17 +1,27 @@
-<!DOCTYPE html><html lang="tr">
+<!DOCTYPE html>
+<html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script><script src="https://cdn.jsdelivr.net/npm/nsfwjs"></script><title>Moderation System</title><style>
-body{
-    background:#000;
-    color:#fff;
-    font-family:Arial;
-    text-align:center;
-    padding-top:80px;
-}
-</style></head>
-<body><h2 id="status">Model yükleniyor...</h2><img id="preview" style="display:none;max-width:300px;"><script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nsfwjs"></script>
+    <title>Moderation System</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: Arial;
+            text-align: center;
+            padding-top: 80px;
+        }
+    </style>
+</head>
+<body>
 
+    <h2 id="status">Model yükleniyor...</h2>
+    <img id="preview" style="display:none;max-width:300px;">
+
+<script>
 let model = null;
 
 const PORN_LIMIT   = 0.08;
@@ -19,61 +29,51 @@ const HENTAI_LIMIT = 0.10;
 const SEXY_LIMIT   = 0.45;
 
 async function loadModel(){
+    try {
+        document.getElementById("status").innerText = "TensorFlow yükleniyor...";
 
-    document.getElementById("status").innerText =
-    "TensorFlow yükleniyor...";
+        // Model yükleme yolu özel URL ile değiştirildi
+        model = await nsfwjs.load(
+            "https://raw.githubusercontent.com/infinitered/nsfwjs/master/example/public/model/"
+        );
 
-    model = await nsfwjs.load();
-
-    document.getElementById("status").innerText =
-    "✅ Moderation hazır";
-
+        document.getElementById("status").innerText = "✅ Moderation hazır";
+    } catch(err) {
+        console.error(err);
+        document.getElementById("status").innerText = "❌ HATA: " + err.message;
+    }
 }
 
 loadModel();
 
 window.addEventListener("message", async (event)=>{
-
     if(!event.data) return;
     if(event.data.type !== "CHECK_IMAGE") return;
 
     if(!model){
-
         parent.postMessage({
             type:"MODERATION_RESULT",
             safe:false,
             reason:"MODEL_NOT_READY"
         },"*");
-
         return;
     }
 
     try{
-
         const img = document.getElementById("preview");
-
         img.src = event.data.image;
 
         img.onload = async ()=>{
-
-            const predictions =
-            await model.classify(img);
+            const predictions = await model.classify(img);
 
             let porn = 0;
             let hentai = 0;
             let sexy = 0;
 
             predictions.forEach(p=>{
-
-                if(p.className==="Porn")
-                    porn = p.probability;
-
-                if(p.className==="Hentai")
-                    hentai = p.probability;
-
-                if(p.className==="Sexy")
-                    sexy = p.probability;
-
+                if(p.className==="Porn")   porn = p.probability;
+                if(p.className==="Hentai") hentai = p.probability;
+                if(p.className==="Sexy")   sexy = p.probability;
             });
 
             let blocked = false;
@@ -83,12 +83,10 @@ window.addEventListener("message", async (event)=>{
                 blocked = true;
                 reason = "PORN";
             }
-
             if(hentai > HENTAI_LIMIT){
                 blocked = true;
                 reason = "HENTAI";
             }
-
             if(sexy > SEXY_LIMIT){
                 blocked = true;
                 reason = "SEXY";
@@ -102,20 +100,15 @@ window.addEventListener("message", async (event)=>{
                 hentai:hentai,
                 sexy:sexy
             },"*");
-
         };
-
     }catch(e){
-
         parent.postMessage({
             type:"MODERATION_RESULT",
             safe:false,
             reason:"ERROR"
         },"*");
-
     }
-
 });
-
-</script></body>
+</script>
+</body>
 </html>
