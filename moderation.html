@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nsfwjs"></script>
+    <!-- unpkg CDN kaynakları güncellendi -->
+    <script src="https://unpkg.com/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://unpkg.com/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
     <title>Moderation System</title>
     <style>
         body {
@@ -28,19 +29,17 @@ const PORN_LIMIT   = 0.08;
 const HENTAI_LIMIT = 0.10;
 const SEXY_LIMIT   = 0.45;
 
+// Yeni loadModel fonksiyonu
 async function loadModel(){
     try {
-        document.getElementById("status").innerText = "TensorFlow yükleniyor...";
+        document.getElementById("status").innerText = "Model yükleniyor...";
 
-        // Model yükleme yolu özel URL ile değiştirildi
-        model = await nsfwjs.load(
-            "https://raw.githubusercontent.com/infinitered/nsfwjs/master/example/public/model/"
-        );
+        model = await nsfwjs.load();
 
         document.getElementById("status").innerText = "✅ Moderation hazır";
     } catch(err) {
         console.error(err);
-        document.getElementById("status").innerText = "❌ HATA: " + err.message;
+        document.getElementById("status").innerText = "❌ " + err.message;
     }
 }
 
