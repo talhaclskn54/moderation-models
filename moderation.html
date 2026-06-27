@@ -1,113 +1,43 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- unpkg CDN kaynakları güncellendi -->
-    <script src="https://unpkg.com/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-    <script src="https://unpkg.com/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
-    <title>Moderation System</title>
-    <style>
-        body {
-            background: #000;
-            color: #fff;
-            font-family: Arial;
-            text-align: center;
-            padding-top: 80px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Moderation</title>
 </head>
 <body>
 
-    <h2 id="status">Model yükleniyor...</h2>
-    <img id="preview" style="display:none;max-width:300px;">
-
 <script>
-let model = null;
-
-const PORN_LIMIT   = 0.08;
-const HENTAI_LIMIT = 0.10;
-const SEXY_LIMIT   = 0.45;
-
-// Yeni loadModel fonksiyonu
-async function loadModel(){
-    try {
-        document.getElementById("status").innerText = "Model yükleniyor...";
-
-        model = await nsfwjs.load();
-
-        document.getElementById("status").innerText = "✅ Moderation hazır";
-    } catch(err) {
-        console.error(err);
-        document.getElementById("status").innerText = "❌ " + err.message;
-    }
-}
-
-loadModel();
 
 window.addEventListener("message", async (event)=>{
+
     if(!event.data) return;
     if(event.data.type !== "CHECK_IMAGE") return;
 
-    if(!model){
-        parent.postMessage({
-            type:"MODERATION_RESULT",
-            safe:false,
-            reason:"MODEL_NOT_READY"
-        },"*");
-        return;
+    const image = event.data.image;
+
+    // Basit kontrol
+    let safe = true;
+    let reason = "SAFE";
+
+    // Çok büyük base64 ise şüpheli kabul et
+    if(image.length > 3000000){
+        safe = false;
+        reason = "IMAGE_TOO_LARGE";
     }
 
-    try{
-        const img = document.getElementById("preview");
-        img.src = event.data.image;
+    parent.postMessage({
+        type:"MODERATION_RESULT",
+        safe:safe,
+        reason:reason
+    },"*");
 
-        img.onload = async ()=>{
-            const predictions = await model.classify(img);
-
-            let porn = 0;
-            let hentai = 0;
-            let sexy = 0;
-
-            predictions.forEach(p=>{
-                if(p.className==="Porn")   porn = p.probability;
-                if(p.className==="Hentai") hentai = p.probability;
-                if(p.className==="Sexy")   sexy = p.probability;
-            });
-
-            let blocked = false;
-            let reason = "SAFE";
-
-            if(porn > PORN_LIMIT){
-                blocked = true;
-                reason = "PORN";
-            }
-            if(hentai > HENTAI_LIMIT){
-                blocked = true;
-                reason = "HENTAI";
-            }
-            if(sexy > SEXY_LIMIT){
-                blocked = true;
-                reason = "SEXY";
-            }
-
-            parent.postMessage({
-                type:"MODERATION_RESULT",
-                safe:!blocked,
-                reason:reason,
-                porn:porn,
-                hentai:hentai,
-                sexy:sexy
-            },"*");
-        };
-    }catch(e){
-        parent.postMessage({
-            type:"MODERATION_RESULT",
-            safe:false,
-            reason:"ERROR"
-        },"*");
-    }
 });
+
+parent.postMessage({
+    type:"MODERATION_READY"
+},"*");
+
 </script>
+
 </body>
 </html>
